@@ -17,6 +17,7 @@ GPIO.setup(BUZZER_PIN, GPIO.OUT)
 # PWM setup (for LED pulse effect)
 led_pwm = GPIO.PWM(LED_PIN, 100)  # Frequency: 100Hz
 led_pwm.start(0)  # Initial Duty Cycle = 0%
+buzzer_pwm = GPIO.PWM(BUZZER_PIN, 659)
 
 def get_distance():
     """
@@ -63,9 +64,9 @@ def activate_feedback():
     """
     Activate LED pulse and buzzer to provide feedback.
     """
-    GPIO.output(BUZZER_PIN, True)  # Turn on the buzzer
-    pulse_effect()                 # Run LED pulse effect
-    GPIO.output(BUZZER_PIN, False) # Turn off the buzzer
+    buzzer_pwm.start(50) # Turn on the buzzer
+    time.sleep(1000)                 # Run LED pulse effect
+    buzzer_pwm.stop() # Turn off the buzzer
 
 def main():
     """
