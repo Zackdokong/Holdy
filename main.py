@@ -1,93 +1,94 @@
 import RPi.GPIO as GPIO
 import time
 
-# 핀 번호 설정
+# Pin configuration
 TRIG = 23
 ECHO = 24
 LED_PIN = 17
 BUZZER_PIN = 22
 
-# GPIO 설정
+# GPIO setup
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
 GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
 
-# PWM 설정 (LED 펄스 효과를 위해)
-led_pwm = GPIO.PWM(LED_PIN, 100)  # 주파수 100Hz
-led_pwm.start(0)  # 초기 Duty Cycle = 0%
+# PWM setup (for LED pulse effect)
+led_pwm = GPIO.PWM(LED_PIN, 100)  # Frequency: 100Hz
+led_pwm.start(0)  # Initial Duty Cycle = 0%
 
 def get_distance():
     """
-    초음파 거리 센서를 이용해 현재 거리(cm)를 측정하는 함수.
+    Measure the distance (in cm) using the ultrasonic distance sensor.
     """
     GPIO.output(TRIG, True)
-    time.sleep(0.00001)  # 10μs 펄스
+    time.sleep(0.00001)  # 10μs pulse
     GPIO.output(TRIG, False)
 
     start_time = time.time()
     stop_time = time.time()
 
-    # 신호 발사 후 ECHO 핀에서 신호가 들어오기까지 대기
+    # Wait for ECHO pin to go HIGH
     while GPIO.input(ECHO) == 0:
         start_time = time.time()
     
-    # ECHO 핀이 신호를 잃을 때까지 대기
+    # Wait for ECHO pin to go LOW
     while GPIO.input(ECHO) == 1:
         stop_time = time.time()
-        # 안전장치: 무한 루프 방지
-        if stop_time - start_time > 0.04:  # 40ms 이상이면 거리 초과로 간주
+        # Safety mechanism: prevent infinite loop
+        if stop_time - start_time > 0.04:  # Consider as out of range if > 40ms
             return 999
 
-    # 시간 차이를 계산하여 거리 계산 (음속: 34300 cm/s)
+    # Calculate distance based on elapsed time (speed of sound: 34300 cm/s)
     elapsed_time = stop_time - start_time
     distance = (elapsed_time * 34300) / 2
     return distance
 
 def pulse_effect():
     """
-    LED를 심장 박동처럼 밝아졌다가 어두워지는 펄스 효과로 제어.
+    Control the LED to create a heartbeat-like pulse effect.
     """
-    # 점점 밝아지는 구간
-    for duty_cycle in range(0, 101, 5):  # 0% -> 100% (밝아짐)
+    # Brightening phase
+    for duty_cycle in range(0, 101, 5):  # 0% -> 100% (brightening)
         led_pwm.ChangeDutyCycle(duty_cycle)
-        time.sleep(0.02)  # 천천히 밝아지도록 20ms 대기
+        time.sleep(0.02)  # Gradual brightening: 20ms delay
 
-    # 점점 어두워지는 구간
-    for duty_cycle in range(100, -1, -5):  # 100% -> 0% (어두워짐)
+    # Dimming phase
+    for duty_cycle in range(100, -1, -5):  # 100% -> 0% (dimming)
         led_pwm.ChangeDutyCycle(duty_cycle)
-        time.sleep(0.02)  # 천천히 어두워지도록 20ms 대기
+        time.sleep(0.02)  # Gradual dimming: 20ms delay
 
 def activate_feedback():
     """
-    LED 펄스와 부저를 활성화하여 피드백을 전달하는 함수.
+    Activate LED pulse and buzzer to provide feedback.
     """
-    GPIO.output(BUZZER_PIN, True)  # 부저 켜기
-    pulse_effect()                 # LED 펄스 효과 실행
-    GPIO.output(BUZZER_PIN, False) # 부저 끄기
+    GPIO.output(BUZZER_PIN, True)  # Turn on the buzzer
+    pulse_effect()                 # Run LED pulse effect
+    GPIO.output(BUZZER_PIN, False) # Turn off the buzzer
 
 def main():
     """
-    거리 센서를 통해 손잡기 상태를 감지하고 LED 펄스와 부저로 피드백을 전달하는 메인 함수.
+    Main function to detect hand grasping through the distance sensor 
+    and provide feedback with LED pulse and buzzer.
     """
-    print("시작: 원격 손잡기 기계 작동 중...")
+    print("Start: Remote hand-holding machine running...")
     try:
         while True:
             distance = get_distance()
-            print(f"현재 거리: {distance:.2f} cm")
+            print(f"Current distance: {distance:.2f} cm")
 
-            if distance < 10:  # 손잡기 감지 거리 (10cm 이하)
-                print("손잡기 감지됨! 신호를 보냅니다.")
+            if distance < 10:  # Grasping detected within 10cm range
+                print("Grasp detected! Sending feedback signal.")
                 activate_feedback()
             else:
-                print("손잡기 감지되지 않음.")
+                print("No grasp detected.")
 
-            time.sleep(0.5)  # 0.5초 대기 후 다시 측정
+            time.sleep(0.5)  # Wait 0.5 seconds before next measurement
     except KeyboardInterrupt:
-        print("\n프로그램 종료. GPIO 정리 중...")
+        print("\nProgram terminated. Cleaning up GPIO...")
     finally:
-        led_pwm.stop()  # PWM 중지
+        led_pwm.stop()  # Stop PWM
         GPIO.cleanup()
 
 if __name__ == "__main__":
